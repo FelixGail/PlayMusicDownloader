@@ -1,11 +1,15 @@
 # PlayMusicDownloader
 
 ## Installation
-This project needs Python 3.5+ 
+Clone or download and extract [this project](https://github.com/FelixGail/PlayMusicDownloader/releases/latest)
+
+###### Prerequisites
+Python 3.5+ 
 
 ###### Dependencies
  - [gmusicapi](https://github.com/simon-weber/gmusicapi)
  - [mutagen](https://github.com/quodlibet/mutagen)
+ 
 
 If you have `pip` installed simply run the following command:
 ```
