@@ -1,11 +1,10 @@
 {
-  "quality": "hi",
-  "song_path": "songs",
   "gmusic_username": "",
-  "save_album_cover": true,
-  "gmusic_locale": "de_DE",
   "device_id": "",
-  "download_threads": 1,
-  "_comment:": "allowed tags: {id}, {title}, {artist}, {album}",
-  "file_name_pattern": "{artist}-{title}"
+  "gmusic_locale": 0,
+  "song_path": "songs",
+  "file_name_pattern": "{artist}-{title}",
+  "quality": "hi",
+  "save_album_cover": true,
+  "download_threads": 1
 }
