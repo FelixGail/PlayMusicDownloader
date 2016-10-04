@@ -22,7 +22,7 @@ def wait_key():
     # Wait for a key press on the console and return it.
     if os.name == 'nt':
         import msvcrt
-        return str(msvcrt.getch()).encode()
+        return ord(msvcrt.getch())
     else:
         import termios
         fd = sys.stdin.fileno()
@@ -33,7 +33,7 @@ def wait_key():
         termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
         try:
-            return str(sys.stdin.read(1)).encode()
+            return ord(sys.stdin.read(1))
         except IOError:
             pass
         finally:
@@ -44,10 +44,10 @@ def input_escape_or_return(message):
     print(message)
     while not keyboard_interrupt:
         c = wait_key()
-        if c == chr(27).encode():
+        if c == 27:
             # Escape
             return False
-        if c == chr(10).encode():
+        if c == 10 or c == 13:
             # Return
             return True
 
@@ -114,7 +114,6 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = [self.playlist_name]
             elif self.playlist_name not in meta['playlists']:
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
-            print(meta['playlists'])
             meta.save(v1=2)
             class_var_lock.acquire()
             print("{:6} Song '{} by {}' already present in target directory."
