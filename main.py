@@ -13,6 +13,16 @@ import threading
 import urllib
 
 
+# Taken from http://stackoverflow.com/a/29988426
+def u_print(*objects, sep=' ', end='\n', file=sys.stdout):
+    enc = file.encoding
+    if enc == 'UTF-8':
+        print(*objects, sep=sep, end=end, file=file)
+    else:
+        f = lambda obj: str(obj).encode(enc, errors='backslashreplace').decode(enc)
+        print(*map(f, objects), sep=sep, end=end, file=file)
+
+
 def signal_handler(signal, frame):
     global keyboard_interrupt
     keyboard_interrupt = True
@@ -42,7 +52,7 @@ def wait_key():
 
 
 def input_escape_or_return(message):
-    print(message)
+    u_print(message)
     while not keyboard_interrupt:
         c = wait_key()
         if c == 27:
@@ -123,14 +133,14 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
             meta.save(v1=2)
             class_var_lock.acquire()
-            print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
+            u_print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
                   .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_EXISTING,
                           info['title'], info['artist'], config.COLOR_RESET))
             class_var_lock.release()
             return
 
         class_var_lock.acquire()
-        print("{}{:6} {}Downloading song '{} by {}'"
+        u_print("{}{:6} {}Downloading song '{} by {}'"
               .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_RESET, info['title'], info['artist']))
         class_var_lock.release()
         attempts = 3
@@ -242,7 +252,7 @@ try:
         i = 0
         max_len = 0
         for playlist in playlists:
-            print('{:>{count}}: {}'.format(i, playlist['name'], count=playlists_string_width))
+            u_print('{:>{count}}: {}'.format(i, playlist['name'], count=playlists_string_width))
             max_len = max(max_len, len(playlist['name']))
             if (i + 1) % 25 == 0 and i < playlists_len:
                 if not input_escape_or_return('{:-^{width}}'.format('[ESC] to stop - [Return] for more',
