@@ -1,5 +1,3 @@
-import signal
-
 import config
 from gmusicapi.clients.mobileclient import Mobileclient
 from gmusicapi.exceptions import CallFailure
@@ -8,6 +6,8 @@ import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen import id3
 import os
+from re import sub
+import signal
 import sys
 import threading
 import urllib
@@ -22,7 +22,8 @@ def wait_key():
     # Wait for a key press on the console and return it.
     if os.name == 'nt':
         import msvcrt
-        return ord(msvcrt.getch())
+        while msvcrt.kbhit():
+            return ord(msvcrt.getch())
     else:
         import termios
         fd = sys.stdin.fileno()
@@ -50,6 +51,10 @@ def input_escape_or_return(message):
         if c == 10 or c == 13:
             # Return
             return True
+
+
+def remove_forbidden_characters(value):
+    return sub('[<>?*/:|\\\"]', '', value)
 
 
 def get_int_input(message, value_range=None):
@@ -100,8 +105,10 @@ class DownloadThread(threading.Thread):
         song_id = self.assigned_song['trackId']
         info = self.assigned_song['track']
         self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
-                                      .format(artist=info['artist'], album=info['album'], id=song_id,
-                                              title=info['title'])
+                                      .format(artist=remove_forbidden_characters(info['artist']),
+                                              album=remove_forbidden_characters(info['album']),
+                                              title=remove_forbidden_characters(info['title']),
+                                              id=song_id)
                                       + ".mp3")
 
         if os.path.isfile(self.file_path):
