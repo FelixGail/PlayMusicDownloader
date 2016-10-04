@@ -123,14 +123,15 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
             meta.save(v1=2)
             class_var_lock.acquire()
-            print("{:6} Song '{} by {}' already present in target directory."
-                  .format(self.get_percent(), info['title'], info['artist']))
+            print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
+                  .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_EXISTING,
+                          info['title'], info['artist'], config.COLOR_RESET))
             class_var_lock.release()
             return
 
         class_var_lock.acquire()
-        print("{:6} Downloading song '{} by {}'"
-              .format(self.get_percent(), info['title'], info['artist']))
+        print("{}{:6} {}Downloading song '{} by {}'"
+              .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_RESET, info['title'], info['artist']))
         class_var_lock.release()
         attempts = 3
         url = None
@@ -226,7 +227,8 @@ api = None
 try:
     api = Mobileclient(debug_logging=False)
     if not api.login(config.get_username(), config.get_password(), config.get_device_id(), config.get_gmusic_locale()):
-        raise RuntimeError("Could not log into GMusic")
+        print(config.COLOR_ERROR+"Could not log into GMusic")
+        sys.exit()
 
     playlists = api.get_all_playlists()
     playlists_len = len(playlists)
@@ -247,7 +249,7 @@ try:
                                                                     width=(max_len + playlists_string_width + 2))):
                     break
             i += 1
-        selected_id = get_int_input('Enter a playlist id (0-{}): '.format(playlists_len - 1), range(0, playlists_len))
+        selected_id = get_int_input('\nEnter a playlist id (0-{}): '.format(playlists_len - 1), range(0, playlists_len))
         print()
         playlist = playlists[selected_id]
         collect_tracks(playlist)

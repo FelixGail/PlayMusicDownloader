@@ -7,6 +7,7 @@ Clone or download and extract [this project](https://github.com/FelixGail/PlayMu
 Python 3.5+ 
 
 ###### Dependencies
+ - [colorama](https://github.com/tartley/colorama)
  - [gmusicapi](https://github.com/simon-weber/gmusicapi)
  - [mutagen](https://github.com/quodlibet/mutagen)
  
