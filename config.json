@@ -1,7 +1,7 @@
 {
-  "gmusic_username": "",
-  "device_id": "",
-  "gmusic_locale": 0,
+  "gmusic_username": "felix.clemens.gail@gmail.com",
+  "device_id": "358044053582272",
+  "gmusic_locale": "de_DE",
   "song_path": "songs",
   "file_name_pattern": "{artist}-{title}",
   "quality": "hi",

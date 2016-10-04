@@ -114,6 +114,8 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = [self.playlist_name]
             elif self.playlist_name not in meta['playlists']:
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
+            print(meta['playlists'])
+            meta.save(v1=2)
             class_var_lock.acquire()
             print("{:6} Song '{} by {}' already present in target directory."
                   .format(self.get_percent(), info['title'], info['artist']))
@@ -148,6 +150,7 @@ class DownloadThread(threading.Thread):
         meta['title'] = info['title']
         meta['artist'] = info['artist']
         meta['album'] = info['album']
+        meta['date'] = str(info['year'])
 
         if 'genre' in info:
             meta['genre'] = info['genre']
@@ -166,7 +169,7 @@ class DownloadThread(threading.Thread):
             except (KeyError, IOError) as e:
                 print(e)
 
-        meta.save()
+        meta.save(v1=2)
 
     @classmethod
     def get_percent(cls):
@@ -209,7 +212,6 @@ if not os.path.isdir(config.get_song_path()):
 
 keyboard_interrupt = False
 signal.signal(signal.SIGINT, signal_handler)
-EasyID3.RegisterTextKey('length', 'TLEN')
 EasyID3.RegisterTXXXKey('playlists', 'Google Play Playlist')
 EasyID3.RegisterKey('albumArt', get_album_art, set_album_art)
 

@@ -1,6 +1,7 @@
 from getpass import getpass
 import json
 import locale
+import sys
 
 
 def load_config():
@@ -21,14 +22,16 @@ def get_song_path():
 def get_username():
     username = config.get('gmusic_username', False)
     if not username:
-        raise ValueError('username missing in config.json')
+        print('username missing in config.json')
+        sys.exit()
     return username
 
 
 def get_device_id():
     device_id = config.get('device_id', False)
     if not device_id:
-        raise ValueError('device_id missing in config.json')
+        print('device_id missing in config.json')
+        sys.exit()
     return device_id
 
 password = False
