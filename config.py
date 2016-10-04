@@ -1,4 +1,5 @@
 from colorama import Fore
+from colorama import init
 from getpass import getpass
 import json
 import locale
@@ -57,6 +58,7 @@ def get_save_album_cover():
     return config.get('save_album_cover', True)
 
 
+init()
 password = False
 config = load_config()
 COLOR_ERROR = Fore.RED
