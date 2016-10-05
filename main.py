@@ -13,21 +13,6 @@ import threading
 import urllib
 
 
-# Taken from http://stackoverflow.com/a/29988426
-def u_print(*objects, sep=' ', end='\n', file=sys.stdout):
-    enc = file.encoding
-    if enc == 'UTF-8':
-        print(*objects, sep=sep, end=end, file=file)
-    else:
-        f = lambda obj: str(obj).encode(enc, errors='backslashreplace').decode(enc)
-        print(*map(f, objects), sep=sep, end=end, file=file)
-
-
-def signal_handler(signal, frame):
-    global keyboard_interrupt
-    keyboard_interrupt = True
-
-
 def wait_key():
     # Wait for a key press on the console and return it.
     if os.name == 'nt':
@@ -52,8 +37,8 @@ def wait_key():
 
 
 def input_escape_or_return(message):
-    u_print(message)
-    while not keyboard_interrupt:
+    print(message)
+    while not InterruptListenerThread.is_keyboard_interrupt():
         c = wait_key()
         if c == 27:
             # Escape
@@ -68,7 +53,7 @@ def remove_forbidden_characters(value):
 
 
 def get_int_input(message, value_range=None):
-    while 1:
+    while 1 and not InterruptListenerThread.is_keyboard_interrupt():
         try:
             value = int(input(message))
             if value_range is not None and value not in value_range:
@@ -104,7 +89,7 @@ class DownloadThread(threading.Thread):
 
     def run(self):
             assign_lock_download.acquire()
-            while len(tracks) > 0 and not keyboard_interrupt:
+            while len(tracks) > 0 and not InterruptListenerThread.is_keyboard_interrupt():
                 self.assigned_song = tracks.pop(0)
                 assign_lock_download.release()
                 self.download()
@@ -113,11 +98,11 @@ class DownloadThread(threading.Thread):
 
     def download(self):
         song_id = self.assigned_song['trackId']
-        info = self.assigned_song['track']
+        info = Decoder(self.assigned_song['track'], 'UTF-16')
         self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
-                                      .format(artist=remove_forbidden_characters(info['artist']),
-                                              album=remove_forbidden_characters(info['album']),
-                                              title=remove_forbidden_characters(info['title']),
+                                      .format(artist=remove_forbidden_characters(info.get('artist')),
+                                              album=remove_forbidden_characters(info.get('album')),
+                                              title=remove_forbidden_characters(info.get('title')),
                                               id=song_id)
                                       + ".mp3")
 
@@ -133,20 +118,20 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
             meta.save(v1=2)
             class_var_lock.acquire()
-            u_print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
+            print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
                   .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_EXISTING,
-                          info['title'], info['artist'], config.COLOR_RESET))
+                          info.get('title'), info.get('artist'), config.COLOR_RESET))
             class_var_lock.release()
             return
 
         class_var_lock.acquire()
-        u_print("{}{:6} {}Downloading song '{} by {}'"
-              .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_RESET, info['title'], info['artist']))
+        print("{}{:6} {}Downloading song '{} by {}'"
+              .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_RESET, info.get('title'), info.get('artist')))
         class_var_lock.release()
         attempts = 3
         url = None
 
-        while attempts and not url and not keyboard_interrupt:
+        while attempts and not url and not InterruptListenerThread.is_keyboard_interrupt():
             try:
                 url = api.get_stream_url(song_id, quality=config.get_quality())
                 if not url:
@@ -164,23 +149,23 @@ class DownloadThread(threading.Thread):
 
         meta = mutagen.File(self.file_path, easy=True)
         meta.add_tags()
-        meta['title'] = info['title']
-        meta['artist'] = info['artist']
-        meta['album'] = info['album']
-        meta['date'] = str(info['year'])
+        meta['title'] = info.get('title')
+        meta['artist'] = info.get('artist')
+        meta['album'] = info.get('album')
+        meta['date'] = str(info.get('year'))
 
         if 'genre' in info:
-            meta['genre'] = info['genre']
+            meta['genre'] = info.get('genre')
 
         if 'trackNumber' in info:
-            meta['tracknumber'] = str(info['trackNumber'])
+            meta['tracknumber'] = str(info.get('trackNumber'))
 
-        meta['length'] = info['durationMillis']
+        meta['length'] = info.get('durationMillis')
         meta['playlists'] = [self.playlist_name]
 
         if config.get_save_album_cover():
             try:
-                art_request = urllib.request.Request(info['albumArtRef'][0]['url'])
+                art_request = urllib.request.Request(info.get('albumArtRef')[0]['url'])
                 with urllib.request.urlopen(art_request) as page:
                     meta['albumArt'] = page.read()
             except (KeyError, IOError) as e:
@@ -215,6 +200,35 @@ class DownloadThread(threading.Thread):
         cls.track_count = None
 
 
+class Decoder(object):
+    def __init__(self, dictionary, encoding):
+        self. encoding = encoding
+        self. dictionary = dictionary
+
+    def get(self, key):
+        value = self.dictionary[key]
+        return str(value).encode(self.encoding).decode(self.encoding)
+
+
+class InterruptListenerThread(threading.Thread):
+    keyboard_interrupt = False
+
+    def __init__(self):
+        threading.Thread.__init__(self)
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+    def signal_handler(self, signal, frame):
+        self.set_keyboard_interrupt()
+
+    @classmethod
+    def set_keyboard_interrupt(cls):
+        cls.keyboard_interrupt = True
+
+    @classmethod
+    def is_keyboard_interrupt(cls):
+        return cls.keyboard_interrupt
+
+
 def get_album_art(id3, _):
     return id3['APIC']
 
@@ -227,14 +241,14 @@ if not os.path.isdir(config.get_song_path()):
     os.makedirs(config.get_song_path())
 
 
-keyboard_interrupt = False
-signal.signal(signal.SIGINT, signal_handler)
 EasyID3.RegisterTXXXKey('playlists', 'Google Play Playlist')
 EasyID3.RegisterKey('albumArt', get_album_art, set_album_art)
 
 
 api = None
 try:
+    interrupt_thread = InterruptListenerThread()
+    interrupt_thread.start()
     api = Mobileclient(debug_logging=False)
     if not api.login(config.get_username(), config.get_password(), config.get_device_id(), config.get_gmusic_locale()):
         print(config.COLOR_ERROR+"Could not log into GMusic")
@@ -247,12 +261,12 @@ try:
     assign_lock_download = threading.Lock()
     class_var_lock = threading.Lock()
     tracks = []
-    while another_playlist and not keyboard_interrupt:
+    while another_playlist and not InterruptListenerThread.is_keyboard_interrupt():
         print('\nA list of all playlists:\n')
         i = 0
         max_len = 0
         for playlist in playlists:
-            u_print('{:>{count}}: {}'.format(i, playlist['name'], count=playlists_string_width))
+            print('{:>{count}}: {}'.format(i, playlist['name'], count=playlists_string_width))
             max_len = max(max_len, len(playlist['name']))
             if (i + 1) % 25 == 0 and i < playlists_len:
                 if not input_escape_or_return('{:-^{width}}'.format('[ESC] to stop - [Return] for more',
