@@ -152,13 +152,13 @@ class DownloadThread(threading.Thread):
         meta['title'] = info.get('title')
         meta['artist'] = info.get('artist')
         meta['album'] = info.get('album')
-        meta['date'] = str(info.get('year'))
+        meta['date'] = info.get('year')
 
-        if 'genre' in info:
+        if info.contains('genre'):
             meta['genre'] = info.get('genre')
 
-        if 'trackNumber' in info:
-            meta['tracknumber'] = str(info.get('trackNumber'))
+        if info.contains('trackNumber'):
+            meta['tracknumber'] = info.get('trackNumber')
 
         meta['length'] = info.get('durationMillis')
         meta['playlists'] = [self.playlist_name]
@@ -208,6 +208,9 @@ class Decoder(object):
     def get(self, key):
         value = self.dictionary[key]
         return str(value).encode(self.encoding).decode(self.encoding)
+
+    def contains(self, key):
+        return key in self.dictionary
 
 
 class InterruptListenerThread(threading.Thread):
