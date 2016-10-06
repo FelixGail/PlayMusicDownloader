@@ -7,6 +7,7 @@ Clone or download and extract [this project](https://github.com/FelixGail/PlayMu
 Python 3.5+ 
 
 ###### Dependencies
+ - [colorama](https://github.com/tartley/colorama)
  - [gmusicapi](https://github.com/simon-weber/gmusicapi)
  - [mutagen](https://github.com/quodlibet/mutagen)
  
@@ -27,7 +28,7 @@ gmusic_username     | yes       | -                 | the email connected with y
 device_id           | yes       | -                 | the id of an `android` or `ios` device connected with googleplay
 gmusic_locale       | no        | system local      | the locale your account is registered in (e.g. en_US)
 song_path           | no        | songs/            | os path the songs will be saved to
-file_name_pattern   | no        | {artist}-{title}  | the pattern files will be created by. allowed tags: {artist}, {title}, {album}, {id} (GooglePlay song id [unique])
+file_name_pattern   | no        | {artist}-{title}  | the pattern files will be created by. allowed tags: {artist}, {title}, {album}, {id} (GooglePlay song id [unique]). Forbidden characters will be removed (/ \ * ? : \| < > ").
 quality             | no        | hi                | song quality. allowed values: lo, med, hi
 save_album_cover    | no        | true              | download the album cover?
 download_threads    | no        | 1                 | count of allowed parallel downloads

@@ -1,5 +1,3 @@
-import signal
-
 import config
 from gmusicapi.clients.mobileclient import Mobileclient
 from gmusicapi.exceptions import CallFailure
@@ -8,21 +6,20 @@ import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen import id3
 import os
+from re import sub
+import signal
 import sys
 import threading
+from time import sleep
 import urllib
-
-
-def signal_handler(signal, frame):
-    global keyboard_interrupt
-    keyboard_interrupt = True
 
 
 def wait_key():
     # Wait for a key press on the console and return it.
     if os.name == 'nt':
         import msvcrt
-        return str(msvcrt.getch()).encode()
+        while msvcrt.kbhit():
+            return ord(msvcrt.getch())
     else:
         import termios
         fd = sys.stdin.fileno()
@@ -33,7 +30,7 @@ def wait_key():
         termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
         try:
-            return str(sys.stdin.read(1)).encode()
+            return ord(sys.stdin.read(1))
         except IOError:
             pass
         finally:
@@ -42,18 +39,22 @@ def wait_key():
 
 def input_escape_or_return(message):
     print(message)
-    while not keyboard_interrupt:
+    while continue_event.is_set():
         c = wait_key()
-        if c == chr(27).encode():
+        if c == 27:
             # Escape
             return False
-        if c == chr(10).encode():
+        if c == 10 or c == 13:
             # Return
             return True
 
 
+def remove_forbidden_characters(value):
+    return sub('[<>?*/:|\\\"]', '', value)
+
+
 def get_int_input(message, value_range=None):
-    while 1:
+    while 1 and continue_event.is_set():
         try:
             value = int(input(message))
             if value_range is not None and value not in value_range:
@@ -61,6 +62,8 @@ def get_int_input(message, value_range=None):
             return value
         except ValueError:
             pass
+        except EOFError:
+            sys.exit()
 
 
 def collect_tracks(selected_playlist):
@@ -88,20 +91,23 @@ class DownloadThread(threading.Thread):
         self.file_path = None
 
     def run(self):
-            assign_lock_download.acquire()
-            while len(tracks) > 0 and not keyboard_interrupt:
-                self.assigned_song = tracks.pop(0)
-                assign_lock_download.release()
-                self.download()
-                assign_lock_download.acquire()
+        assign_lock_download.acquire()
+        while len(tracks) > 0 and continue_event.is_set():
+            self.assigned_song = tracks.pop(0)
             assign_lock_download.release()
+            self.download()
+            assign_lock_download.acquire()
+        assign_lock_download.release()
+        threads.remove(self)
 
     def download(self):
         song_id = self.assigned_song['trackId']
-        info = self.assigned_song['track']
+        info = Decoder(self.assigned_song['track'], 'UTF-16')
         self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
-                                      .format(artist=info['artist'], album=info['album'], id=song_id,
-                                              title=info['title'])
+                                      .format(artist=remove_forbidden_characters(info.get('artist')),
+                                              album=remove_forbidden_characters(info.get('album')),
+                                              title=remove_forbidden_characters(info.get('title')),
+                                              id=song_id)
                                       + ".mp3")
 
         if os.path.isfile(self.file_path):
@@ -114,20 +120,23 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = [self.playlist_name]
             elif self.playlist_name not in meta['playlists']:
                 meta['playlists'] = meta['playlists'].append(self.playlist_name)
+            meta.save(v1=2)
             class_var_lock.acquire()
-            print("{:6} Song '{} by {}' already present in target directory."
-                  .format(self.get_percent(), info['title'], info['artist']))
+            print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
+                  .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_EXISTING,
+                          info.get('title'), info.get('artist'), config.COLOR_RESET))
             class_var_lock.release()
             return
 
         class_var_lock.acquire()
-        print("{:6} Downloading song '{} by {}'"
-              .format(self.get_percent(), info['title'], info['artist']))
+        print("{}{:6} {}Downloading song '{} by {}'"
+              .format(config.COLOR_PERCENT, self.get_percent(),
+                      config.COLOR_RESET, info.get('title'), info.get('artist')))
         class_var_lock.release()
         attempts = 3
         url = None
 
-        while attempts and not url and not keyboard_interrupt:
+        while attempts and not url and continue_event.is_set():
             try:
                 url = api.get_stream_url(song_id, quality=config.get_quality())
                 if not url:
@@ -145,28 +154,29 @@ class DownloadThread(threading.Thread):
 
         meta = mutagen.File(self.file_path, easy=True)
         meta.add_tags()
-        meta['title'] = info['title']
-        meta['artist'] = info['artist']
-        meta['album'] = info['album']
+        meta['title'] = info.get('title')
+        meta['artist'] = info.get('artist')
+        meta['album'] = info.get('album')
+        meta['date'] = info.get('year')
 
-        if 'genre' in info:
-            meta['genre'] = info['genre']
+        if info.contains('genre'):
+            meta['genre'] = info.get('genre')
 
-        if 'trackNumber' in info:
-            meta['tracknumber'] = str(info['trackNumber'])
+        if info.contains('trackNumber'):
+            meta['tracknumber'] = info.get('trackNumber')
 
-        meta['length'] = info['durationMillis']
+        meta['length'] = info.get('durationMillis')
         meta['playlists'] = [self.playlist_name]
 
         if config.get_save_album_cover():
             try:
-                art_request = urllib.request.Request(info['albumArtRef'][0]['url'])
+                art_request = urllib.request.Request(info.get('albumArtRef')[0]['url'])
                 with urllib.request.urlopen(art_request) as page:
                     meta['albumArt'] = page.read()
             except (KeyError, IOError) as e:
                 print(e)
 
-        meta.save()
+        meta.save(v1=2)
 
     @classmethod
     def get_percent(cls):
@@ -195,6 +205,28 @@ class DownloadThread(threading.Thread):
         cls.track_count = None
 
 
+class Decoder(object):
+    def __init__(self, dictionary, encoding):
+        self.encoding = encoding
+        self.dictionary = dictionary
+
+    def get(self, key):
+        value = self.dictionary[key]
+        if isinstance(value, str):
+            return sub(u"(\u2018|\u2019)", "'", value)
+        elif isinstance(value, int):
+            return str(value)
+        return value
+
+    def contains(self, key):
+        return key in self.dictionary
+
+
+def signal_handler(signal, frame):
+    print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
+    continue_event.clear()
+
+
 def get_album_art(id3, _):
     return id3['APIC']
 
@@ -206,19 +238,18 @@ def set_album_art(id3, _, value):
 if not os.path.isdir(config.get_song_path()):
     os.makedirs(config.get_song_path())
 
-
-keyboard_interrupt = False
-signal.signal(signal.SIGINT, signal_handler)
-EasyID3.RegisterTextKey('length', 'TLEN')
 EasyID3.RegisterTXXXKey('playlists', 'Google Play Playlist')
 EasyID3.RegisterKey('albumArt', get_album_art, set_album_art)
 
-
 api = None
 try:
+    continue_event = threading.Event()
+    continue_event.set()
+    signal.signal(signal.SIGINT, signal_handler)
     api = Mobileclient(debug_logging=False)
     if not api.login(config.get_username(), config.get_password(), config.get_device_id(), config.get_gmusic_locale()):
-        raise RuntimeError("Could not log into GMusic")
+        print(config.COLOR_ERROR + "Could not log into GMusic")
+        sys.exit()
 
     playlists = api.get_all_playlists()
     playlists_len = len(playlists)
@@ -227,7 +258,7 @@ try:
     assign_lock_download = threading.Lock()
     class_var_lock = threading.Lock()
     tracks = []
-    while another_playlist and not keyboard_interrupt:
+    while another_playlist and continue_event.is_set():
         print('\nA list of all playlists:\n')
         i = 0
         max_len = 0
@@ -239,7 +270,7 @@ try:
                                                                     width=(max_len + playlists_string_width + 2))):
                     break
             i += 1
-        selected_id = get_int_input('Enter a playlist id (0-{}): '.format(playlists_len - 1), range(0, playlists_len))
+        selected_id = get_int_input('\nEnter a playlist id (0-{}): '.format(playlists_len - 1), range(0, playlists_len))
         print()
         playlist = playlists[selected_id]
         collect_tracks(playlist)
@@ -249,15 +280,14 @@ try:
             threads.append(new_thread)
             new_thread.start()
 
-        for thread in threads:
-            thread.join()
+        while len(threads) > 0:
+            sleep(1)
 
-        print('\nFinished Downloading!')
-        DownloadThread.reset_class_vars()
+        if continue_event.is_set():
+            print('\n{}[100%]{} Finished Downloading!'.format(config.COLOR_PERCENT, config.COLOR_RESET))
+            DownloadThread.reset_class_vars()
+            another_playlist = input_escape_or_return('\n[Esc] to exit - [Return] to continue')
 
-        another_playlist = input_escape_or_return('\n[Esc] to exit - [Return] to continue')
-except KeyboardInterrupt:
-    pass
 finally:
     if api is not None and api.is_authenticated():
         api.logout()
