@@ -10,6 +10,7 @@ from re import sub
 import signal
 import sys
 import threading
+from time import sleep
 import urllib
 
 
@@ -38,7 +39,7 @@ def wait_key():
 
 def input_escape_or_return(message):
     print(message)
-    while not InterruptListenerThread.is_keyboard_interrupt():
+    while continue_event.is_set():
         c = wait_key()
         if c == 27:
             # Escape
@@ -53,7 +54,7 @@ def remove_forbidden_characters(value):
 
 
 def get_int_input(message, value_range=None):
-    while 1 and not InterruptListenerThread.is_keyboard_interrupt():
+    while 1 and continue_event.is_set():
         try:
             value = int(input(message))
             if value_range is not None and value not in value_range:
@@ -61,6 +62,8 @@ def get_int_input(message, value_range=None):
             return value
         except ValueError:
             pass
+        except EOFError:
+            sys.exit()
 
 
 def collect_tracks(selected_playlist):
@@ -88,13 +91,14 @@ class DownloadThread(threading.Thread):
         self.file_path = None
 
     def run(self):
-            assign_lock_download.acquire()
-            while len(tracks) > 0 and not InterruptListenerThread.is_keyboard_interrupt():
-                self.assigned_song = tracks.pop(0)
-                assign_lock_download.release()
-                self.download()
-                assign_lock_download.acquire()
+        assign_lock_download.acquire()
+        while len(tracks) > 0 and continue_event.is_set():
+            self.assigned_song = tracks.pop(0)
             assign_lock_download.release()
+            self.download()
+            assign_lock_download.acquire()
+        assign_lock_download.release()
+        threads.remove(self)
 
     def download(self):
         song_id = self.assigned_song['trackId']
@@ -126,12 +130,13 @@ class DownloadThread(threading.Thread):
 
         class_var_lock.acquire()
         print("{}{:6} {}Downloading song '{} by {}'"
-              .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_RESET, info.get('title'), info.get('artist')))
+              .format(config.COLOR_PERCENT, self.get_percent(),
+                      config.COLOR_RESET, info.get('title'), info.get('artist')))
         class_var_lock.release()
         attempts = 3
         url = None
 
-        while attempts and not url and not InterruptListenerThread.is_keyboard_interrupt():
+        while attempts and not url and continue_event.is_set():
             try:
                 url = api.get_stream_url(song_id, quality=config.get_quality())
                 if not url:
@@ -202,8 +207,8 @@ class DownloadThread(threading.Thread):
 
 class Decoder(object):
     def __init__(self, dictionary, encoding):
-        self. encoding = encoding
-        self. dictionary = dictionary
+        self.encoding = encoding
+        self.dictionary = dictionary
 
     def get(self, key):
         value = self.dictionary[key]
@@ -217,23 +222,9 @@ class Decoder(object):
         return key in self.dictionary
 
 
-class InterruptListenerThread(threading.Thread):
-    keyboard_interrupt = False
-
-    def __init__(self):
-        threading.Thread.__init__(self)
-        signal.signal(signal.SIGINT, self.signal_handler)
-
-    def signal_handler(self, signal, frame):
-        self.set_keyboard_interrupt()
-
-    @classmethod
-    def set_keyboard_interrupt(cls):
-        cls.keyboard_interrupt = True
-
-    @classmethod
-    def is_keyboard_interrupt(cls):
-        return cls.keyboard_interrupt
+def signal_handler(signal, frame):
+    print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
+    continue_event.clear()
 
 
 def get_album_art(id3, _):
@@ -247,18 +238,17 @@ def set_album_art(id3, _, value):
 if not os.path.isdir(config.get_song_path()):
     os.makedirs(config.get_song_path())
 
-
 EasyID3.RegisterTXXXKey('playlists', 'Google Play Playlist')
 EasyID3.RegisterKey('albumArt', get_album_art, set_album_art)
 
-
 api = None
 try:
-    interrupt_thread = InterruptListenerThread()
-    interrupt_thread.start()
+    continue_event = threading.Event()
+    continue_event.set()
+    signal.signal(signal.SIGINT, signal_handler)
     api = Mobileclient(debug_logging=False)
     if not api.login(config.get_username(), config.get_password(), config.get_device_id(), config.get_gmusic_locale()):
-        print(config.COLOR_ERROR+"Could not log into GMusic")
+        print(config.COLOR_ERROR + "Could not log into GMusic")
         sys.exit()
 
     playlists = api.get_all_playlists()
@@ -268,7 +258,7 @@ try:
     assign_lock_download = threading.Lock()
     class_var_lock = threading.Lock()
     tracks = []
-    while another_playlist and not InterruptListenerThread.is_keyboard_interrupt():
+    while another_playlist and continue_event.is_set():
         print('\nA list of all playlists:\n')
         i = 0
         max_len = 0
@@ -290,15 +280,14 @@ try:
             threads.append(new_thread)
             new_thread.start()
 
-        for thread in threads:
-            thread.join()
+        while len(threads) > 0:
+            sleep(1)
 
-        print('\nFinished Downloading!')
-        DownloadThread.reset_class_vars()
+        if continue_event.is_set():
+            print('\n{}[100%]{} Finished Downloading!'.format(config.COLOR_PERCENT, config.COLOR_RESET))
+            DownloadThread.reset_class_vars()
+            another_playlist = input_escape_or_return('\n[Esc] to exit - [Return] to continue')
 
-        another_playlist = input_escape_or_return('\n[Esc] to exit - [Return] to continue')
-except KeyboardInterrupt:
-    pass
 finally:
     if api is not None and api.is_authenticated():
         api.logout()
