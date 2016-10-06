@@ -207,7 +207,11 @@ class Decoder(object):
 
     def get(self, key):
         value = self.dictionary[key]
-        return str(value).encode(self.encoding).decode(self.encoding)
+        if isinstance(value, str):
+            return sub(u"(\u2018|\u2019)", "'", value)
+        elif isinstance(value, int):
+            return str(value)
+        return value
 
     def contains(self, key):
         return key in self.dictionary
