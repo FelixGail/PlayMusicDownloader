@@ -78,6 +78,13 @@ def collect_tracks(selected_playlist):
                 break
 
 
+def add_to_meta(meta, info, meta_key, info_key=None):
+    if info_key is None:
+        info_key = meta_key
+    if info.contains(info_key):
+        meta[meta_key] = info.get(info_key)
+
+
 class DownloadThread(threading.Thread):
     downloaded_tracks = None
     track_count = None
@@ -154,18 +161,14 @@ class DownloadThread(threading.Thread):
 
         meta = mutagen.File(self.file_path, easy=True)
         meta.add_tags()
-        meta['title'] = info.get('title')
-        meta['artist'] = info.get('artist')
-        meta['album'] = info.get('album')
-        meta['date'] = info.get('year')
+        add_to_meta(meta, info, 'title')
+        add_to_meta(meta, info, 'artist')
+        add_to_meta(meta, info, 'album')
+        add_to_meta(meta, info, 'date', 'year')
+        add_to_meta(meta, info, 'genre')
+        add_to_meta(meta, info, 'tracknumber', 'trackNumber')
+        add_to_meta(meta, info, 'length', 'durationMillis')
 
-        if info.contains('genre'):
-            meta['genre'] = info.get('genre')
-
-        if info.contains('trackNumber'):
-            meta['tracknumber'] = info.get('trackNumber')
-
-        meta['length'] = info.get('durationMillis')
         meta['playlists'] = [self.playlist_name]
 
         if config.get_save_album_cover():
