@@ -109,6 +109,11 @@ class DownloadThread(threading.Thread):
 
     def download(self):
         song_id = self.assigned_song['trackId']
+
+        if 'track' not in self.assigned_song:
+            print('GMusicAPI does not support Information about self uploaded tracks. Skipping Song')
+            return
+
         info = Decoder(self.assigned_song['track'], 'UTF-16')
         self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
                                       .format(artist=remove_forbidden_characters(info.get('artist')),
