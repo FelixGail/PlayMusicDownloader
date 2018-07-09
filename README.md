@@ -18,7 +18,7 @@ sudo -H pip install -r requirements.txt --upgrade
 ```
 Please note that `pip` is called `pip3` for python3.5 on some linux distributions.
 
-##Configuration
+## Configuration
 
 The following options can be set:
 
@@ -33,12 +33,12 @@ quality             | no        | hi                | song quality. allowed valu
 save_album_cover    | no        | true              | download the album cover?
 download_threads    | no        | 1                 | count of allowed parallel downloads
 
-##Usage
+## Usage
 Simply run the `main.py`. 
 ```
 python3 main.py
 ```
 
-##Errors and suggestions
+## Errors and suggestions
 Did you find a bug or have a suggestion? File an [issue](https://github.com/FelixGail/PlayMusicDownloader/issues).
 
