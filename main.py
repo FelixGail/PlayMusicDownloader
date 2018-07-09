@@ -131,7 +131,7 @@ class DownloadThread(threading.Thread):
             if 'playlists' not in meta:
                 meta['playlists'] = [self.playlist_name]
             elif self.playlist_name not in meta['playlists']:
-                meta['playlists'] = meta['playlists'].append(self.playlist_name)
+                meta['playlists'] += [self.playlist_name]
             meta.save(v1=2)
             class_var_lock.acquire()
             print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
@@ -229,8 +229,14 @@ class Decoder(object):
     def contains(self, key):
         return key in self.dictionary
 
+exitCalled = False;
+
 
 def signal_handler(signal, frame):
+    global exitCalled
+    if exitCalled:
+        sys.exit(15);
+    exitCalled = True;
     print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
     continue_event.clear()
 
