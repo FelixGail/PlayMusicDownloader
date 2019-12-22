@@ -119,6 +119,8 @@ class DownloadThread(threading.Thread):
                                       .format(artist=remove_forbidden_characters(info.get('artist')),
                                               album=remove_forbidden_characters(info.get('album')),
                                               title=remove_forbidden_characters(info.get('title')),
+                                              track_number=remove_forbidden_characters(info.get('trackNumber')),
+                                              playlist_position=remove_forbidden_characters(self.assigned_song['absolutePosition']),
                                               id=song_id)
                                       + ".mp3")
 
