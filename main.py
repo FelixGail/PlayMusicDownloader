@@ -68,13 +68,18 @@ def get_int_input(message, value_range=None):
 
 def collect_tracks(selected_playlist):
     global tracks
+    global playlist_position_format
     if selected_playlist['type'] == 'SHARED':
         tracks = api.get_shared_playlist_contents(selected_playlist['shareToken'])
     else:
         all_user_playlists = api.get_all_user_playlist_contents()
         for p in all_user_playlists:
             if selected_playlist['id'] == p['id']:
-                tracks = p['tracks']
+                tracks_tmp = p['tracks']
+                tracks = []
+                for i in range(0,len(tracks_tmp)):
+                    tracks.append((i+1, tracks_tmp[i]))
+                playlist_position_format = '{:0>' + str(math.floor(math.log(len(tracks_tmp),10))+1) + '}'
                 break
 
 
@@ -108,17 +113,27 @@ class DownloadThread(threading.Thread):
         threads.remove(self)
 
     def download(self):
-        song_id = self.assigned_song['trackId']
+        position = self.assigned_song[0]
+        song = self.assigned_song[1]
+        song_id = song['trackId']
 
-        if 'track' not in self.assigned_song:
+        if 'track' not in song:
             print('GMusicAPI does not support Information about self uploaded tracks. Skipping Song')
             return
 
-        info = Decoder(self.assigned_song['track'], 'UTF-16')
+        info = Decoder(song['track'], 'UTF-16')
+
+        if(info.contains('totalTrackCount')):
+            track_padding = '{:0>' + str(math.floor(math.log(int(info.get('totalTrackCount')),10))+1) + '}'
+        else:
+            track_padding = '{:0>2}'
+
         self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
                                       .format(artist=remove_forbidden_characters(info.get('artist')),
                                               album=remove_forbidden_characters(info.get('album')),
                                               title=remove_forbidden_characters(info.get('title')),
+                                              track_number=track_padding.format(info.get('trackNumber')),
+                                              playlist_position=playlist_position_format.format(position),
                                               id=song_id)
                                       + ".mp3")
 
@@ -229,14 +244,14 @@ class Decoder(object):
     def contains(self, key):
         return key in self.dictionary
 
-exitCalled = False;
+exitCalled = False
 
 
 def signal_handler(signal, frame):
     global exitCalled
     if exitCalled:
-        sys.exit(15);
-    exitCalled = True;
+        sys.exit(15)
+    exitCalled = True
     print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
     continue_event.clear()
 
