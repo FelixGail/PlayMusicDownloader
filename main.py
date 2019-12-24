@@ -174,7 +174,7 @@ class DownloadThread(threading.Thread):
                 attempts -= 1
                 if not attempts:
                     raise IOError("Can't download song from Google Play")
-            except:
+            except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 print("Unexpected error while trying to download. Joining thread.")
                 traceback.print_exception(exc_type, exc_value, exc_traceback,
