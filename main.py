@@ -250,7 +250,7 @@ exitCalled = False
 def signal_handler(signal, frame):
     global exitCalled
     if exitCalled:
-        sys.exit(15)
+        exit(1)
     exitCalled = True
     print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
     continue_event.clear()
