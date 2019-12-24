@@ -12,6 +12,7 @@ import sys
 import threading
 from time import sleep
 import urllib
+import traceback
 
 
 def wait_key():
@@ -173,6 +174,13 @@ class DownloadThread(threading.Thread):
                 attempts -= 1
                 if not attempts:
                     raise IOError("Can't download song from Google Play")
+            except Exception:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                print("Unexpected error while trying to download. Joining thread.")
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                              limit=2, file=sys.stdout)
+                self.join()
+
 
             request = urllib.request.Request(url)
             with urllib.request.urlopen(request) as page:
@@ -250,7 +258,7 @@ exitCalled = False
 def signal_handler(signal, frame):
     global exitCalled
     if exitCalled:
-        sys.exit(15)
+        exit(1)
     exitCalled = True
     print('\n{}Exit signal detected. Shutting down gracefully{}\n'.format(config.COLOR_ERROR, config.COLOR_RESET))
     continue_event.clear()
