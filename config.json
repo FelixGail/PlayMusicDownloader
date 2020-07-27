@@ -1,5 +1,4 @@
 {
-  "gmusic_username": "",
   "device_id": "",
   "song_path": "songs",
   "file_name_pattern": "{artist}-{title}",
