@@ -24,7 +24,6 @@ The following options can be set:
 
 option              | required  | default           | description
 ------              | --------  | -------           | -----------
-gmusic_username     | yes       | -                 | the email connected with your google play subscription
 device_id           | yes       | -                 | the id of an `android` or `ios` device connected with googleplay
 gmusic_locale       | no        | system local      | the locale your account is registered in (e.g. en_US)
 song_path           | no        | songs/            | os path the songs will be saved to

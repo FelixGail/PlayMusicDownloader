@@ -78,9 +78,9 @@ def collect_tracks(selected_playlist):
             if selected_playlist['id'] == p['id']:
                 tracks_tmp = p['tracks']
                 tracks = []
-                for i in range(0,len(tracks_tmp)):
-                    tracks.append((i+1, tracks_tmp[i]))
-                playlist_position_format = '{:0>' + str(math.floor(math.log(len(tracks_tmp),10))+1) + '}'
+                for i in range(0, len(tracks_tmp)):
+                    tracks.append((i + 1, tracks_tmp[i]))
+                playlist_position_format = '{:0>' + str(math.floor(math.log(len(tracks_tmp), 10)) + 1) + '}'
                 break
 
 
@@ -124,8 +124,8 @@ class DownloadThread(threading.Thread):
 
         info = Decoder(song['track'], 'UTF-16')
 
-        if(info.contains('totalTrackCount')):
-            track_padding = '{:0>' + str(math.floor(math.log(int(info.get('totalTrackCount')),10))+1) + '}'
+        if (info.contains('totalTrackCount')):
+            track_padding = '{:0>' + str(math.floor(math.log(int(info.get('totalTrackCount')), 10)) + 1) + '}'
         else:
             track_padding = '{:0>2}'
 
@@ -178,9 +178,8 @@ class DownloadThread(threading.Thread):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 print("Unexpected error while trying to download. Joining thread.")
                 traceback.print_exception(exc_type, exc_value, exc_traceback,
-                              limit=2, file=sys.stdout)
+                                          limit=2, file=sys.stdout)
                 self.join()
-
 
             request = urllib.request.Request(url)
             with urllib.request.urlopen(request) as page:
@@ -252,6 +251,7 @@ class Decoder(object):
     def contains(self, key):
         return key in self.dictionary
 
+
 exitCalled = False
 
 
@@ -284,9 +284,9 @@ try:
     continue_event.set()
     signal.signal(signal.SIGINT, signal_handler)
     api = Mobileclient(debug_logging=False)
-    if not api.login(config.get_username(), config.get_password(), config.get_device_id(), config.get_gmusic_locale()):
-        print(config.COLOR_ERROR + "Could not log into GMusic")
-        sys.exit()
+    if not api.oauth_login(config.get_device_id(), oauth_credentials=Mobileclient.OAUTH_FILEPATH):
+        api.perform_oauth(storage_filepath=Mobileclient.OAUTH_FILEPATH)
+        api.oauth_login(config.get_device_id())
 
     playlists = api.get_all_playlists()
     playlists_len = len(playlists)
