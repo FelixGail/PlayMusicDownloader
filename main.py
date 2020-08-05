@@ -139,6 +139,7 @@ class DownloadThread(threading.Thread):
                                       + ".mp3")
 
         if os.path.isfile(self.file_path):
+            update_message = ""
             try:
                 meta = EasyID3(self.file_path)
             except mutagen.id3.ID3NoHeaderError:
@@ -148,11 +149,12 @@ class DownloadThread(threading.Thread):
                 meta['playlists'] = [self.playlist_name]
             elif self.playlist_name not in meta['playlists']:
                 meta['playlists'] += [self.playlist_name]
+                update_message = "(playlist added to meta)"
             meta.save(v1=2)
             class_var_lock.acquire()
-            print("{}{:6} {}Song '{} by {}' already present in target directory.{}"
+            print("{}{:6} {}Song '{} by {}' already present in target directory. {}{}"
                   .format(config.COLOR_PERCENT, self.get_percent(), config.COLOR_EXISTING,
-                          info.get('title'), info.get('artist'), config.COLOR_RESET))
+                          info.get('title'), info.get('artist'), update_message, config.COLOR_RESET))
             class_var_lock.release()
             return
 
@@ -269,7 +271,7 @@ def get_album_art(id3, _):
 
 
 def set_album_art(id3, _, value):
-    id3.add(mutagen.id3.APIC(1, '->', 3, u"Front Cover", value))
+    id3.add(mutagen.id3.APIC(1, 'image/jpeg', 3, u"Front Cover", value))
 
 
 if not os.path.isdir(config.get_song_path()):
