@@ -11,8 +11,10 @@ EasyID3.RegisterTXXXKey('playlists', 'Google Play Playlist')
 def main():
     for root, subdirs, files in os.walk(config.get_song_path()):
         for file in files:
+            rel_filepath = file
             relpath = os.path.relpath(root, config.get_song_path())
-            rel_filepath = os.path.join(relpath, file)
+            if not relpath == ".":
+                rel_filepath = os.path.join(relpath, file)
             print(rel_filepath + ":")
             try:
                 meta = EasyID3(os.path.join(root, file))

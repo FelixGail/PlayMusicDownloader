@@ -54,6 +54,10 @@ def remove_forbidden_characters(value):
     return sub('[<>?*/:|\\\"]', '', value)
 
 
+def replace_whitespace(value):
+    return sub(' ', '_', value)
+
+
 def get_int_input(message, value_range=None):
     while 1 and continue_event.is_set():
         try:
@@ -124,18 +128,19 @@ class DownloadThread(threading.Thread):
 
         info = Decoder(song['track'], 'UTF-16')
 
-        if (info.contains('totalTrackCount')):
+        if info.contains('totalTrackCount'):
             track_padding = '{:0>' + str(math.floor(math.log(int(info.get('totalTrackCount')), 10)) + 1) + '}'
         else:
             track_padding = '{:0>2}'
 
-        self.file_path = os.path.join(config.get_song_path(), config.get_file_name_pattern()
-                                      .format(artist=remove_forbidden_characters(info.get('artist')),
-                                              album=remove_forbidden_characters(info.get('album')),
-                                              title=remove_forbidden_characters(info.get('title')),
-                                              track_number=track_padding.format(info.get('trackNumber')),
-                                              playlist_position=playlist_position_format.format(position),
-                                              id=song_id)
+        self.file_path = os.path.join(config.get_song_path(), replace_whitespace(config.get_file_name_pattern()
+                                                                                 .format(
+            artist=remove_forbidden_characters(info.get('artist')),
+            album=remove_forbidden_characters(info.get('album')),
+            title=remove_forbidden_characters(info.get('title')),
+            track_number=track_padding.format(info.get('trackNumber')),
+            playlist_position=playlist_position_format.format(position),
+            id=song_id))
                                       + ".mp3")
 
         if os.path.isfile(self.file_path):
