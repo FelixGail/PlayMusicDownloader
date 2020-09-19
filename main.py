@@ -134,7 +134,7 @@ class DownloadThread(threading.Thread):
             track_padding = '{:0>2}'
 
         self.file_path = os.path.join(config.get_song_path(), replace_whitespace(config.get_file_name_pattern()
-                                                                                 .format(
+            .format(
             artist=remove_forbidden_characters(info.get('artist')),
             album=remove_forbidden_characters(info.get('album')),
             title=remove_forbidden_characters(info.get('title')),
@@ -143,6 +143,7 @@ class DownloadThread(threading.Thread):
             id=song_id))
                                       + ".mp3")
 
+        playlist_string = ["{}:{}".format(self.playlist_name, position)]
         if os.path.isfile(self.file_path):
             update_message = ""
             try:
@@ -151,10 +152,11 @@ class DownloadThread(threading.Thread):
                 meta = mutagen.File(self.file_path, easy=True)
                 meta.add_tags()
             if 'playlists' not in meta:
-                meta['playlists'] = [self.playlist_name]
-            elif self.playlist_name not in meta['playlists']:
-                meta['playlists'] += [self.playlist_name]
-                update_message = "(playlist added to meta)"
+                meta['playlists'] = playlist_string
+            else:
+                meta['playlists'] = [p for p in meta['playlists']
+                                     if len(p.split(':')) > 0 and p.split(':')[0] != self.playlist_name] \
+                                    + playlist_string
             meta.save(v1=2)
             class_var_lock.acquire()
             print("{}{:6} {}Song '{} by {}' already present in target directory. {}{}"
@@ -203,7 +205,7 @@ class DownloadThread(threading.Thread):
         add_to_meta(meta, info, 'tracknumber', 'trackNumber')
         add_to_meta(meta, info, 'length', 'durationMillis')
 
-        meta['playlists'] = [self.playlist_name]
+        meta['playlists'] = playlist_string
 
         if config.get_save_album_cover():
             try:
@@ -317,10 +319,11 @@ try:
         selected_id = get_int_input('\nEnter a playlist id (0-{}): '.format(playlists_len - 1), range(0, playlists_len))
         print()
         playlist = playlists[selected_id]
+        cleaned_playlist_name = replace_whitespace(remove_forbidden_characters(playlist["name"]))
         collect_tracks(playlist)
         threads = []
         for i in range(0, config.get_download_threads()):
-            new_thread = DownloadThread(i, playlist['name'])
+            new_thread = DownloadThread(i, cleaned_playlist_name)
             threads.append(new_thread)
             new_thread.start()
 
